@@ -48,11 +48,21 @@
   th:nth-child(5) { width: 14%; }
   th:nth-child(6) { width: 26%; }
   .status {
-    position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
+    position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%);
     background: rgba(0,0,0,.78); color: #fff; padding: 7px 16px; border-radius: 999px;
     font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 9;
   }
   .status.show { opacity: 1; }
+  .playbtn {
+    position: fixed; right: 14px; bottom: 14px; z-index: 10;
+    padding: 13px 22px; border-radius: 999px; border: none;
+    background: #c0272d; color: #fff; font-size: 16px; font-weight: 700;
+    font-family: inherit; letter-spacing: 1px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.28); cursor: pointer;
+    -webkit-user-select: none; user-select: none;
+  }
+  .playbtn.playing { background: #2b2b2b; }
+  .playbtn:active { transform: scale(.96); }
 
   /* 今日高亮：按星期整栏框选，颜色显眼 */
   tr.today-row td { background: #fff3c4; border: 3px solid #e53935 !important; }
@@ -92,6 +102,7 @@
     </table>
   </div>
 </div>
+<button class="playbtn" id="playbtn">▶ 播放</button>
 <div class="status" id="status"></div>
 <script>
 /* 北京时间 */
@@ -187,10 +198,109 @@ function speak(text, cell){
   var tds = document.querySelectorAll("td.dish");
   for (var i=0;i<tds.length;i++){
     (function(td){
-      td.addEventListener("click", function(){ speak(td.getAttribute("data-text"), td); });
+      td.addEventListener("click", function(){
+        if (playing) stopAuto(false);
+        speak(td.getAttribute("data-text"), td);
+      });
     })(tds[i]);
   }
 })();
+
+/* ===== 自动连播：今天当前时段，循环播放 ===== */
+var playing = false, autoTimer = null, autoAudio = null, queue = [], qi = 0;
+
+function todayRowIndex(){
+  var d = bjNow();
+  var day = d.getDay();
+  var dayNo = day === 0 ? 7 : day;      // 1=周一 .. 7=周日
+  var half = d.getHours() < 12 ? 0 : 1; // 12 点前=上午(0)，之后=下午(1)
+  return (dayNo - 1) * 2 + half;
+}
+
+function currentDishes(){
+  var trs = document.querySelectorAll("tbody tr");
+  var tr = trs[todayRowIndex()];
+  if (!tr) return [];
+  return Array.prototype.slice.call(tr.querySelectorAll("td.dish"));
+}
+
+function clearSpeaking(){
+  var s = document.querySelectorAll("td.dish.speaking");
+  for (var i=0;i<s.length;i++) s[i].classList.remove("speaking");
+}
+
+function stopAuto(showMsg){
+  playing = false;
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  if (autoAudio) { try { autoAudio.pause(); autoAudio.currentTime = 0; } catch(e){} autoAudio = null; }
+  try { if(window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+  clearSpeaking();
+  releaseAwake();
+  var b = document.getElementById("playbtn");
+  if (b) { b.textContent = "▶ 播放"; b.classList.remove("playing"); }
+  if (showMsg) showStatus("已停止播放");
+}
+
+function startAuto(){
+  playing = true;
+  queue = currentDishes(); qi = 0;
+  var b = document.getElementById("playbtn");
+  if (b) { b.textContent = "■ 停止"; b.classList.add("playing"); }
+  keepAwake();
+  playNext();
+}
+
+/* 播放期间保持屏幕常亮 */
+var wakeLock = null;
+function keepAwake(){
+  try {
+    if (navigator.wakeLock && navigator.wakeLock.request) {
+      navigator.wakeLock.request("screen").then(function(l){ wakeLock = l; }).catch(function(){});
+    }
+  } catch(e){}
+}
+function releaseAwake(){
+  try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch(e){}
+}
+document.addEventListener("visibilitychange", function(){
+  if (!document.hidden && playing) keepAwake();
+});
+
+function playNext(){
+  if (!playing) return;
+  if (qi >= queue.length){
+    queue = currentDishes(); qi = 0;   // 一轮播完，重新取当前时段
+    if (!queue.length) { stopAuto(false); return; }
+  }
+  var cell = queue[qi++];
+  if (!cell) { stopAuto(false); return; }
+  clearSpeaking();
+  cell.classList.add("speaking");
+  var text = cell.getAttribute("data-text");
+  var src = cell.getAttribute("data-audio");
+  if (autoAudio) { try { autoAudio.pause(); } catch(e){} }
+  autoAudio = new Audio(src);
+  autoAudio.onplay = function(){ showStatus("正在播放：" + text); };
+  autoAudio.onended = function(){ autoTimer = setTimeout(playNext, 800); };
+  autoAudio.onerror = function(){ autoTimer = setTimeout(playNext, 300); };
+  var p = autoAudio.play();
+  if (p && p.catch) {
+    p.catch(function(){
+      stopAuto(false);
+      showStatus("请点右下角播放键开始");
+    });
+  }
+}
+
+(function(){
+  var b = document.getElementById("playbtn");
+  if (!b) return;
+  b.addEventListener("click", function(e){
+    e.stopPropagation();
+    if (playing) stopAuto(true); else startAuto();
+  });
+})();
+
 
 /* 今日高亮条：按北京时间当前星期自动框选该星期整栏（上午+下午两行），类似日历选中今天 */
 function highlightToday(){
