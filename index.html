@@ -282,6 +282,24 @@ function speakText(text, cb){
 }
 function announce(text, cb){ speakText(text, cb); }
 
+var HEAD_AUDIO = { 0: "menu_audio/head_am.mp3", 1: "menu_audio/head_pm.mp3" };
+/* 先播「今天上午/今天下午」真人语音，再播菜 */
+function playHeader(half, cb){
+  var done = false;
+  function next(){ if (done) return; done = true; setTimeout(function(){ if (playing) cb(); }, 150); }
+  showStatus("今天" + halfName(half));
+  var p = getPlayer();
+  p.onended = null; p.onerror = null; p.onplaying = null;
+  p.onended = next;
+  p.onerror = function(){ speakText("今天" + halfName(half), next); };
+  try { p.src = HEAD_AUDIO[half]; p.load(); } catch(e){}
+  var pr = p.play();
+  if (pr && pr.catch) pr.catch(function(){ speakText("今天" + halfName(half), next); });
+  setTimeout(function(){
+    if (!done && (p.paused || p.currentTime < 0.05)) speakText("今天" + halfName(half), next);
+  }, 1500);
+}
+
 function startAuto(half){
   if (typeof half === "number") forcedHalf = half; else forcedHalf = null;
   activeHalf = resolveHalf();
@@ -291,8 +309,7 @@ function startAuto(half){
   updateButtons();
   keepAwake();
   preloadQueue();
-  showStatus("今天" + halfName(activeHalf));
-  announce("今天" + halfName(activeHalf), function(){ if (playing) playNext(); });
+  playHeader(activeHalf, playNext);
 }
 
 /* 播放期间保持屏幕常亮 */
@@ -377,8 +394,7 @@ function playNext(){
     queue = dishesOf(activeHalf); qi = 0;
     if (!queue.length) { stopAuto(false); return; }
     preloadQueue();
-    showStatus("今天" + halfName(activeHalf));
-    announce("今天" + halfName(activeHalf), function(){ if (playing) playNext(); });
+    playHeader(activeHalf, playNext);
     return;
   }
   var cell = queue[qi++];
