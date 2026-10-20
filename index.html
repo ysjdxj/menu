@@ -369,6 +369,8 @@ function playItem(cell){
   function fromTTS(){
     if (settled) return; settled = true;
     if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+    /* 兜底前先彻底停掉音频，避免 TTS 与 mp3 同时出声 */
+    try { p.pause(); p.onplaying = null; p.onended = null; p.onerror = null; p.removeAttribute("src"); p.load(); } catch(e){}
     speakText(text, function(){ if (playing) autoTimer = setTimeout(playNext, 500); });
   }
   function ok(){
