@@ -285,19 +285,26 @@ function announce(text, cb){ speakText(text, cb); }
 var HEAD_AUDIO = { 0: "menu_audio/head_am.mp3", 1: "menu_audio/head_pm.mp3" };
 /* 先播「今天上午/今天下午」真人语音，再播菜 */
 function playHeader(half, cb){
-  var done = false;
-  function next(){ if (done) return; done = true; setTimeout(function(){ if (playing) cb(); }, 150); }
-  showStatus("今天" + halfName(half));
+  var done = false, started = false, fbUsed = false;
   var p = getPlayer();
-  p.onended = null; p.onerror = null; p.onplaying = null;
+  function next(){
+    if (done) return; done = true;
+    setTimeout(function(){ if (playing) cb(); }, 150);
+  }
+  function fallback(){
+    if (done || fbUsed) return; fbUsed = true;
+    try { p.pause(); p.onended = null; p.onerror = null; p.removeAttribute("src"); p.load(); } catch(e){}
+    speakText("今天" + halfName(half), next);
+  }
+  showStatus("今天" + halfName(half));
+  p.onplaying = function(){ started = true; };
   p.onended = next;
-  p.onerror = function(){ speakText("今天" + halfName(half), next); };
+  p.onerror = fallback;
   try { p.src = HEAD_AUDIO[half]; p.load(); } catch(e){}
   var pr = p.play();
-  if (pr && pr.catch) pr.catch(function(){ speakText("今天" + halfName(half), next); });
-  setTimeout(function(){
-    if (!done && (p.paused || p.currentTime < 0.05)) speakText("今天" + halfName(half), next);
-  }, 1500);
+  if (pr && pr.catch) pr.catch(fallback);
+  /* 只有确实没进入播放且没有数据时才兜底，避免手机首播慢导致重复播报 */
+  setTimeout(function(){ if (!done && !started && p.readyState < 3) fallback(); }, 3500);
 }
 
 function startAuto(half){
@@ -377,10 +384,10 @@ function playItem(cell){
   try { p.src = src; p.load(); } catch(e){}
   var pr = p.play();
   if (pr && pr.catch) pr.catch(fromTTS);
-  /* 1.5 秒还没出声，就用语音合成念菜名兜底，保证不哑 */
+  /* 真正没出声（未 started 且无可用数据）才用语音合成兜底，避免与音频叠加 */
   watchdog = setTimeout(function(){
-    if (!settled && (p.paused || p.currentTime < 0.05)) fromTTS();
-  }, 1500);
+    if (!settled && p.readyState < 3) fromTTS();
+  }, 3500);
 }
 
 function speakEnded(){
