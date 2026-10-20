@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>菜单</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body { width: 100%; min-height: 100%; background: #fff; margin: 0; }
+  .stage { width: 100%; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 0; overflow-x: auto; }
+  .page {
+    background: #fff; color: #000; width: 100%; padding: 1px 2px;
+    border: none; border-radius: 0;
+    transform-origin: center center; margin: 0 auto;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .topline {
+    display: flex; justify-content: flex-start; align-items: baseline;
+    gap: 10px; font-size: 16px; color: #333; margin-bottom: 1px; font-weight: 700;
+  }
+  .topline b { font-size: 19px; color: #000; }
+  h1 {
+    text-align: center; font-size: 22px; color: #c0272d; letter-spacing: 14px;
+    margin: 2px 0 6px; font-weight: 700;
+  }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th {
+    border: 1px solid #a01f25; padding: 1px 1px; font-size: 15px; font-weight: 700; line-height: 1.05;
+    text-align: center; background: #c0272d; color: #fff;
+  }
+  td {
+    border: 1px solid #999; padding: 1px 2px; font-size: 15px; line-height: 1.05;
+  }
+  td.d {
+    text-align: center; vertical-align: middle; font-weight: 700; color: #b71c1c;
+    background: #fdecea; border-color: #e8b4b4;
+    writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 2px;
+    white-space: nowrap; width: 36px; padding: 1px 1px; font-size: 12px;
+  }
+  td.t { text-align: center; font-weight: 700; color: #b71c1c; background: #fff7e0; width: 42px; font-size: 15px; }
+  td.dish { text-align: left; cursor: pointer; user-select: none; }
+  tr:nth-child(even) td.dish { background: #f4f9ff; }
+  tr:nth-child(odd) td.dish { background: #fdf8ef; }
+  td.dish:active { background: #fff3bf; }
+  td.dish.speaking { background: #fff3bf; font-weight: 700; }
+  th:nth-child(3), th:nth-child(4) { width: 20%; }
+  th:nth-child(5) { width: 14%; }
+  th:nth-child(6) { width: 26%; }
+  .status {
+    position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
+    background: rgba(0,0,0,.78); color: #fff; padding: 7px 16px; border-radius: 999px;
+    font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 9;
+  }
+  .status.show { opacity: 1; }
+
+  /* 今日高亮：按星期整栏框选，颜色显眼 */
+  tr.today-row td { background: #fff3c4; border: 3px solid #e53935 !important; }
+  tr.today-row td.d { background: #e53935 !important; color: #fff; border-color: #c62828 !important; box-shadow: inset 4px 0 0 #b71c1c; }
+  tr.today-row td.t { background: #ffca28 !important; color: #8a1a1a; }
+  tr.today-row td.dish { font-weight: 700; }
+  tr.today-row td.dish.speaking { background: #fff3bf !important; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="page" id="page">
+    <div class="topline">
+      <span>北京 <b id="clock">--:--:--</b></span>
+      <span id="date">----年--月--日 星期-</span>
+    </div>
+    <table>
+      <thead>
+        <tr><th>日期</th><th>时段</th><th>菜式一</th><th>菜式二</th><th>青菜</th><th>汤</th></tr>
+      </thead>
+      <tbody>
+<tr><td class="d" rowspan="2">星期一</td><td class="t">上午</td><td class="dish" data-text="白萝卜炒嫩牛肉" data-audio="menu_audio/01.mp3">白萝卜炒嫩牛肉</td><td class="dish" data-text="瘦肉蒸水蛋" data-audio="menu_audio/02.mp3">瘦肉蒸水蛋</td><td class="dish" data-text="炒菜心" data-audio="menu_audio/03.mp3">炒菜心</td><td class="dish" data-text="淮山红萝卜猪骨汤" data-audio="menu_audio/04.mp3">淮山红萝卜猪骨汤</td></tr>
+<tr><td class="t">下午</td><td class="dish" data-text="蒸鸡" data-audio="menu_audio/05.mp3">蒸鸡</td><td class="dish" data-text="猪肉炒土豆丝" data-audio="menu_audio/06.mp3">猪肉炒土豆丝</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="北芪党参煲瘦肉汤" data-audio="menu_audio/08.mp3">北芪党参煲瘦肉汤</td></tr>
+<tr><td class="d" rowspan="2">星期二</td><td class="t">上午</td><td class="dish" data-text="焖鸡中翅" data-audio="menu_audio/09.mp3">焖鸡中翅</td><td class="dish" data-text="焖豆腐" data-audio="menu_audio/10.mp3">焖豆腐</td><td class="dish" data-text="猪肉炒豆角" data-audio="menu_audio/11.mp3">猪肉炒豆角</td><td class="dish" data-text="西洋菜猪展肉汤" data-audio="menu_audio/12.mp3">西洋菜猪展肉汤</td></tr>
+<tr><td class="t">下午</td><td class="dish" data-text="蒸排骨" data-audio="menu_audio/13.mp3">蒸排骨</td><td class="dish" data-text="白萝卜焖牛腩" data-audio="menu_audio/14.mp3">白萝卜焖牛腩</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="白萝卜猪骨汤" data-audio="menu_audio/15.mp3">白萝卜猪骨汤</td></tr>
+<tr><td class="d" rowspan="2">星期三</td><td class="t">上午</td><td class="dish" data-text="蒸肉饼" data-audio="menu_audio/16.mp3">蒸肉饼</td><td class="dish" data-text="蒸海鱼" data-audio="menu_audio/17.mp3">蒸海鱼</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="红萝卜瘦肉汤" data-audio="menu_audio/18.mp3">红萝卜瘦肉汤</td></tr>
+<tr><td class="t">下午</td><td class="dish" data-text="鸡" data-audio="menu_audio/19.mp3">鸡</td><td class="dish" data-text="排骨" data-audio="menu_audio/20.mp3">排骨</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="淮山红萝卜猪展肉汤" data-audio="menu_audio/21.mp3">淮山红萝卜猪展肉汤</td></tr>
+<tr><td class="d" rowspan="2">星期四</td><td class="t">上午</td><td class="dish" data-text="嫩牛肉炒西蓝花" data-audio="menu_audio/22.mp3">嫩牛肉炒西蓝花</td><td class="dish" data-text="鸡中翅" data-audio="menu_audio/23.mp3">鸡中翅</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="西洋菜瘦肉汤" data-audio="menu_audio/24.mp3">西洋菜瘦肉汤</td></tr>
+<tr><td class="t">下午</td><td class="dish" data-text="肉碎蒸水蛋" data-audio="menu_audio/25.mp3">肉碎蒸水蛋</td><td class="dish" data-text="红烧肉" data-audio="menu_audio/26.mp3">红烧肉</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="太子参茯苓瘦肉汤" data-audio="menu_audio/27.mp3">太子参茯苓瘦肉汤</td></tr>
+<tr><td class="d" rowspan="2">星期五</td><td class="t">上午</td><td class="dish" data-text="蒸排骨" data-audio="menu_audio/13.mp3">蒸排骨</td><td class="dish" data-text="焖豆腐" data-audio="menu_audio/10.mp3">焖豆腐</td><td class="dish" data-text="腩肉炒豆角" data-audio="menu_audio/28.mp3">腩肉炒豆角</td><td class="dish" data-text="番茄鸡蛋汤" data-audio="menu_audio/29.mp3">番茄鸡蛋汤</td></tr>
+<tr><td class="t">下午</td><td class="dish" data-text="牛肉炒土豆丝" data-audio="menu_audio/30.mp3">牛肉炒土豆丝</td><td class="dish" data-text="蒸海鱼" data-audio="menu_audio/17.mp3">蒸海鱼</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="红萝卜元肉菜干瘦肉汤" data-audio="menu_audio/31.mp3">红萝卜元肉菜干瘦肉汤</td></tr>
+<tr><td class="d" rowspan="2">星期六</td><td class="t">上午</td><td class="dish" data-text="番茄焖牛肉" data-audio="menu_audio/32.mp3">番茄焖牛肉</td><td class="dish" data-text="红烧肉" data-audio="menu_audio/26.mp3">红烧肉</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="红萝卜玉米猪骨汤" data-audio="menu_audio/33.mp3">红萝卜玉米猪骨汤</td></tr>
+<tr><td class="t">下午</td><td class="dish" data-text="蒸鸡" data-audio="menu_audio/05.mp3">蒸鸡</td><td class="dish" data-text="蒸海鱼" data-audio="menu_audio/17.mp3">蒸海鱼</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="太子参茯苓猪展肉汤" data-audio="menu_audio/34.mp3">太子参茯苓猪展肉汤</td></tr>
+<tr><td class="d" rowspan="2">星期日</td><td class="t">上午</td><td class="dish" data-text="红烧肉" data-audio="menu_audio/26.mp3">红烧肉</td><td class="dish" data-text="牛肉炒西兰花" data-audio="menu_audio/35.mp3">牛肉炒西兰花</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="西洋菜瘦肉汤" data-audio="menu_audio/24.mp3">西洋菜瘦肉汤</td></tr>
+<tr><td class="t">下午</td><td class="dish" data-text="焖排骨" data-audio="menu_audio/36.mp3">焖排骨</td><td class="dish" data-text="焖牛腩" data-audio="menu_audio/37.mp3">焖牛腩</td><td class="dish" data-text="青菜" data-audio="menu_audio/07.mp3">青菜</td><td class="dish" data-text="白萝卜猪骨汤" data-audio="menu_audio/15.mp3">白萝卜猪骨汤</td></tr>
+</tbody>
+    </table>
+  </div>
+</div>
+<div class="status" id="status"></div>
+<script>
+/* 北京时间 */
+function pad(n){ return n<10 ? "0"+n : ""+n; }
+function bjNow(){
+  var d = new Date();
+  return new Date(d.getTime() + d.getTimezoneOffset()*60000 + 8*3600000);
+}
+var WEEKS = ["日","一","二","三","四","五","六"];
+function tick(){
+  var d = bjNow();
+  var c = document.getElementById("clock");
+  if (c) c.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  var dt = document.getElementById("date");
+  if (dt) dt.textContent = d.getFullYear() + "年" + (d.getMonth()+1) + "月" + d.getDate() + "日 星期" + WEEKS[d.getDay()];
+}
+tick(); setInterval(tick, 1000);
+
+/* 屏幕适配：横屏一屏完整显示，竖屏可上下滚动 */
+window.addEventListener("orientationchange", function(){ setTimeout(fit, 300); });
+window.addEventListener("resize", function(){ setTimeout(fit, 300); });
+
+/* 一屏完整显示：自适应缩放 */
+function fit(){
+  try {
+    var p = document.getElementById("page");
+    var w = window.innerWidth, h = window.innerHeight;
+    var pw = p.offsetWidth, ph = p.offsetHeight;
+    if (!pw || !ph) return;
+    var s = 1;
+    if (w >= h) {  // 横屏：缩放一屏完整
+      s = Math.min(w / pw, h / ph);
+      if (s > 1.5) s = 1.5;
+    }
+    p.style.transform = "scale(" + s + ")";
+  } catch(e){}
+}
+setTimeout(fit, 100); setTimeout(fit, 500);
+window.addEventListener("resize", function(){ setTimeout(fit, 60); });
+
+/* 点击发音 */
+var enabled = true, speakingCell = null, currentAudio = null, _st = null;
+function $(id){ return document.getElementById(id); }
+function showStatus(msg){
+  var el = $("status");
+  if(!el) return;
+  el.textContent = msg; el.className = "show";
+  if(_st) clearTimeout(_st);
+  _st = setTimeout(function(){ el.className = ""; }, 2000);
+}
+function pickZhVoice(){
+  try {
+    var vs = window.speechSynthesis.getVoices();
+    for (var i=0;i<vs.length;i++) if (/zh[-_]CN/i.test(vs[i].lang)) return vs[i];
+  } catch(e){}
+  return null;
+}
+function speakFallback(text, cell){
+  try {
+    if (typeof window.speechSynthesis === "undefined") return false;
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; u.rate = 0.85;
+    var v = pickZhVoice(); if (v) u.voice = v;
+    u.onend = function(){ if(cell) cell.className = "dish"; speakingCell = null; };
+    u.onerror = function(){ if(cell) cell.className = "dish"; speakingCell = null; };
+    window.speechSynthesis.speak(u);
+    return true;
+  } catch(e){ return false; }
+}
+function speak(text, cell){
+  if (!enabled) return;
+  try { if(currentAudio) currentAudio.pause(); } catch(e){}
+  currentAudio = null;
+  try { if(window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
+  if(speakingCell){ speakingCell.className = "dish"; speakingCell = null; }
+  if(cell){ cell.className = "dish speaking"; speakingCell = cell; }
+  var src = cell ? cell.getAttribute("data-audio") : "";
+  if (src) {
+    try {
+      var a = new Audio(src);
+      currentAudio = a;
+      a.onerror = function(){ if(cell) cell.className="dish"; speakingCell=null; speakFallback(text,cell); showStatus("音频缺失，已切换朗读"); };
+      a.onended = function(){ if(cell) cell.className="dish"; speakingCell=null; showStatus(""); };
+      a.onplay = function(){ showStatus("播放中：" + text); };
+      try { a.play(); } catch(e){ if(cell) cell.className="dish"; speakingCell=null; speakFallback(text,cell); }
+      return;
+    } catch(e){}
+  }
+  if (speakFallback(text, cell)) showStatus("播放中：" + text);
+  else showStatus("当前浏览器不支持语音");
+}
+(function(){
+  var tds = document.querySelectorAll("td.dish");
+  for (var i=0;i<tds.length;i++){
+    (function(td){
+      td.addEventListener("click", function(){ speak(td.getAttribute("data-text"), td); });
+    })(tds[i]);
+  }
+})();
+
+/* 今日高亮条：按北京时间当前星期自动框选该星期整栏（上午+下午两行），类似日历选中今天 */
+function highlightToday(){
+  try {
+    var d = bjNow();
+    var day = d.getDay();           // 0=周日 .. 6=周六
+    var dayNo = day === 0 ? 7 : day; // 1=周一 .. 7=周日
+    var trs = document.querySelectorAll("tbody tr");
+    for (var i=0;i<trs.length;i++){
+      var rowDay = Math.floor(i / 2) + 1; // 每星期占两行：1=周一 .. 7=周日
+      trs[i].className = (rowDay === dayNo) ? "today-row" : "";
+    }
+  } catch(e){}
+}
+highlightToday();
+setInterval(highlightToday, 30000);
+</script>
+</body>
+</html>
