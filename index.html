@@ -53,16 +53,24 @@
     font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 9;
   }
   .status.show { opacity: 1; }
+  .playgroup {
+    position: fixed; right: 12px; bottom: 12px; z-index: 10;
+    display: flex; gap: 8px; align-items: center;
+  }
   .playbtn {
-    position: fixed; right: 14px; bottom: 14px; z-index: 10;
-    padding: 13px 22px; border-radius: 999px; border: none;
+    padding: 12px 20px; border-radius: 999px; border: none;
     background: #c0272d; color: #fff; font-size: 16px; font-weight: 700;
     font-family: inherit; letter-spacing: 1px;
     box-shadow: 0 4px 16px rgba(0,0,0,.28); cursor: pointer;
-    -webkit-user-select: none; user-select: none;
+    -webkit-user-select: none; user-select: none; white-space: nowrap;
   }
   .playbtn.playing { background: #2b2b2b; }
   .playbtn:active { transform: scale(.96); }
+  .playbtn.side {
+    background: #fff; color: #c0272d; border: 2px solid #c0272d;
+    font-size: 15px; padding: 10px 15px; box-shadow: 0 3px 10px rgba(0,0,0,.16);
+  }
+  .playbtn.side.active { background: #ffca28; color: #7a1418; border-color: #b71c1c; }
 
   /* 今日高亮：按星期整栏框选，颜色显眼 */
   tr.today-row td { background: #fff3c4; border: 3px solid #e53935 !important; }
@@ -102,7 +110,11 @@
     </table>
   </div>
 </div>
-<button class="playbtn" id="playbtn">▶ 播放</button>
+<div class="playgroup">
+  <button class="playbtn side" id="playAM">上午</button>
+  <button class="playbtn side" id="playPM">下午</button>
+  <button class="playbtn" id="playbtn">▶ 播放</button>
+</div>
 <div class="status" id="status"></div>
 <script>
 /* 北京时间 */
@@ -206,20 +218,21 @@ function speak(text, cell){
   }
 })();
 
-/* ===== 自动连播：今天当前时段，循环播放 ===== */
+/* ===== 自动连播：上午/下午可选，播报带时段，循环播放 ===== */
 var playing = false, autoTimer = null, autoAudio = null, queue = [], qi = 0;
+var forcedHalf = null;   /* null=跟随当前时间，0=上午，1=下午 */
+var activeHalf = 0;
 
-function todayRowIndex(){
-  var d = bjNow();
-  var day = d.getDay();
-  var dayNo = day === 0 ? 7 : day;      // 1=周一 .. 7=周日
-  var half = d.getHours() < 12 ? 0 : 1; // 12 点前=上午(0)，之后=下午(1)
-  return (dayNo - 1) * 2 + half;
+function nowHalf(){ return bjNow().getHours() < 12 ? 0 : 1; }
+function resolveHalf(){ return forcedHalf === null ? nowHalf() : forcedHalf; }
+function halfName(h){ return h === 0 ? "上午" : "下午"; }
+function todayDayNo(){
+  var day = bjNow().getDay();
+  return day === 0 ? 7 : day;
 }
-
-function currentDishes(){
+function dishesOf(half){
   var trs = document.querySelectorAll("tbody tr");
-  var tr = trs[todayRowIndex()];
+  var tr = trs[(todayDayNo() - 1) * 2 + half];
   if (!tr) return [];
   return Array.prototype.slice.call(tr.querySelectorAll("td.dish"));
 }
@@ -229,6 +242,18 @@ function clearSpeaking(){
   for (var i=0;i<s.length;i++) s[i].classList.remove("speaking");
 }
 
+function updateButtons(){
+  var b = document.getElementById("playbtn");
+  var am = document.getElementById("playAM");
+  var pm = document.getElementById("playPM");
+  if (b) {
+    b.textContent = playing ? "■ 停止" : "▶ 播放";
+    if (playing) b.classList.add("playing"); else b.classList.remove("playing");
+  }
+  if (am) { if (playing && forcedHalf === 0) am.classList.add("active"); else am.classList.remove("active"); }
+  if (pm) { if (playing && forcedHalf === 1) pm.classList.add("active"); else pm.classList.remove("active"); }
+}
+
 function stopAuto(showMsg){
   playing = false;
   if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
@@ -236,18 +261,38 @@ function stopAuto(showMsg){
   try { if(window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e){}
   clearSpeaking();
   releaseAwake();
-  var b = document.getElementById("playbtn");
-  if (b) { b.textContent = "▶ 播放"; b.classList.remove("playing"); }
+  updateButtons();
   if (showMsg) showStatus("已停止播放");
 }
 
-function startAuto(){
+/* 播报时段名：先念「上午」或「下午」，再念菜名 */
+function speakText(text, cb){
+  var done = false;
+  function finish(){ if (done) return; done = true; setTimeout(cb, 250); }
+  try {
+    if (!window.speechSynthesis) { finish(); return; }
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; u.rate = 0.95;
+    var v = pickZhVoice(); if (v) u.voice = v;
+    u.onend = finish; u.onerror = finish;
+    window.speechSynthesis.speak(u);
+    setTimeout(finish, Math.max(1800, text.length * 480));
+  } catch(e){ finish(); }
+}
+function announce(text, cb){ speakText(text, cb); }
+
+function startAuto(half){
+  if (typeof half === "number") forcedHalf = half; else forcedHalf = null;
+  activeHalf = resolveHalf();
   playing = true;
-  queue = currentDishes(); qi = 0;
-  var b = document.getElementById("playbtn");
-  if (b) { b.textContent = "■ 停止"; b.classList.add("playing"); }
+  queue = dishesOf(activeHalf); qi = 0;
+  if (!queue.length) { playing = false; updateButtons(); showStatus("未找到菜品数据"); return; }
+  updateButtons();
   keepAwake();
-  playNext();
+  preloadQueue();
+  showStatus("今天" + halfName(activeHalf));
+  announce("今天" + halfName(activeHalf), function(){ if (playing) playNext(); });
 }
 
 /* 播放期间保持屏幕常亮 */
@@ -266,38 +311,99 @@ document.addEventListener("visibilitychange", function(){
   if (!document.hidden && playing) keepAwake();
 });
 
+/* 单例 audio：移动端连续播放更稳，避免多次 new Audio 被系统静音 */
+function getPlayer(){
+  if (autoAudio) return autoAudio;
+  var a = new Audio();
+  a.preload = "auto";
+  a.setAttribute("playsinline", "");
+  a.setAttribute("webkit-playsinline", "");
+  autoAudio = a;
+  return a;
+}
+
+/* 预加载新一轮音频，避免弱网时首个音频 404/延迟导致无声 */
+function preloadQueue(){
+  for (var i=0;i<queue.length;i++){
+    var s = queue[i].getAttribute("data-audio");
+    if (!s) continue;
+    try { var a = new Audio(); a.preload = "auto"; a.src = s; } catch(e){}
+  }
+}
+
+function playItem(cell){
+  var text = cell.getAttribute("data-text") || "";
+  var src = cell.getAttribute("data-audio");
+  clearSpeaking();
+  cell.classList.add("speaking");
+  showStatus(halfName(activeHalf) + "：" + text);
+  if (!src) { speakText(text, function(){ autoTimer = setTimeout(playNext, 500); }); return; }
+
+  var p = getPlayer();
+  var settled = false, watchdog = null;
+
+  function fromTTS(){
+    if (settled) return; settled = true;
+    if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+    speakText(text, function(){ if (playing) autoTimer = setTimeout(playNext, 500); });
+  }
+  function ok(){
+    settled = true;
+    if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+  }
+
+  p.onended = null; p.onerror = null; p.onplaying = null;
+  p.onplaying = ok;
+  p.onended = function(){ if (watchdog) { clearTimeout(watchdog); watchdog = null; } speakEnded(); };
+  p.onerror = fromTTS;
+
+  try { p.src = src; p.load(); } catch(e){}
+  var pr = p.play();
+  if (pr && pr.catch) pr.catch(fromTTS);
+  /* 1.5 秒还没出声，就用语音合成念菜名兜底，保证不哑 */
+  watchdog = setTimeout(function(){
+    if (!settled && (p.paused || p.currentTime < 0.05)) fromTTS();
+  }, 1500);
+}
+
+function speakEnded(){
+  if (playing) autoTimer = setTimeout(playNext, 700);
+}
+
 function playNext(){
   if (!playing) return;
   if (qi >= queue.length){
-    queue = currentDishes(); qi = 0;   // 一轮播完，重新取当前时段
+    activeHalf = resolveHalf();              /* 一轮播完，重新判定时段 */
+    queue = dishesOf(activeHalf); qi = 0;
     if (!queue.length) { stopAuto(false); return; }
+    preloadQueue();
+    showStatus("今天" + halfName(activeHalf));
+    announce("今天" + halfName(activeHalf), function(){ if (playing) playNext(); });
+    return;
   }
   var cell = queue[qi++];
   if (!cell) { stopAuto(false); return; }
-  clearSpeaking();
-  cell.classList.add("speaking");
-  var text = cell.getAttribute("data-text");
-  var src = cell.getAttribute("data-audio");
-  if (autoAudio) { try { autoAudio.pause(); } catch(e){} }
-  autoAudio = new Audio(src);
-  autoAudio.onplay = function(){ showStatus("正在播放：" + text); };
-  autoAudio.onended = function(){ autoTimer = setTimeout(playNext, 800); };
-  autoAudio.onerror = function(){ autoTimer = setTimeout(playNext, 300); };
-  var p = autoAudio.play();
-  if (p && p.catch) {
-    p.catch(function(){
-      stopAuto(false);
-      showStatus("请点右下角播放键开始");
-    });
-  }
+  playItem(cell);
 }
 
 (function(){
   var b = document.getElementById("playbtn");
-  if (!b) return;
-  b.addEventListener("click", function(e){
+  var am = document.getElementById("playAM");
+  var pm = document.getElementById("playPM");
+  if (b) b.addEventListener("click", function(e){
     e.stopPropagation();
-    if (playing) stopAuto(true); else startAuto();
+    if (playing) stopAuto(true);
+    else startAuto(null);
+  });
+  if (am) am.addEventListener("click", function(e){
+    e.stopPropagation();
+    if (playing && forcedHalf === 0) stopAuto(true);
+    else startAuto(0);
+  });
+  if (pm) pm.addEventListener("click", function(e){
+    e.stopPropagation();
+    if (playing && forcedHalf === 1) stopAuto(true);
+    else startAuto(1);
   });
 })();
 
